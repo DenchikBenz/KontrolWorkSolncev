@@ -19,10 +19,7 @@
     <button type="submit">Login</button>
 </form>
 
-<!-- Ссылка на регистрацию -->
 <p>Don't have an account? <a href="registration.jsp">Register here</a>.</p>
-
-<!-- Сообщение об ошибке, переданное из сервлета -->
 <c:if test="${not empty errorMessage}">
     <p style="color: red;">${errorMessage}</p>
 </c:if>
