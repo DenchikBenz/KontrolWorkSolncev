@@ -28,7 +28,7 @@ public class LoginServlet extends HttpServlet {
         boolean isAuthenticated = authService.login(username, password);
 
         if (isAuthenticated) {
-            resp.sendRedirect("welcome.jsp");
+            resp.sendRedirect("welcome.html");
         } else {
             req.setAttribute("errorMessage", "Invalid username or password.");
             req.getRequestDispatcher("index.jsp").forward(req, resp);

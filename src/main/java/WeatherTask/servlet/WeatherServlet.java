@@ -1,4 +1,5 @@
 package WeatherTask.servlet;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -12,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import WeatherTask.dao.impl.WeatherDao;
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -19,46 +21,62 @@ import com.google.gson.JsonParser;
 public class WeatherServlet extends HttpServlet {
     private static final String API_KEY = "bd5e378503939ddaee76f12ad7a97608";
     private static final String API_URL = "http://api.openweathermap.org/data/2.5/weather";
-    private static final  WeatherDao weatherDao = new WeatherDao();
+    private static final WeatherDao weatherDao = new WeatherDao();
+
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String city = req.getParameter("city");
         Map<String, String> weatherData = getWeatherData(city);
 
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+
         if (weatherData != null) {
-            weatherDao.saveWeatherRequest(
-                    weatherData.get("city"),
-                    weatherData.get("temperature"),
-                    weatherData.get("description")
-            );
-            req.setAttribute("weatherData", weatherData);
+            Gson gson = new Gson();
+            String jsonResponse = gson.toJson(weatherData);
+            System.out.println("Response: " + jsonResponse);
+            resp.getWriter().write(jsonResponse);
         } else {
-            req.setAttribute("errorMessage", "Unable to retrieve weather data. Please try again.");
+            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.getWriter().write("{\"error\":\"Unable to retrieve weather data.\"}");
         }
-        req.getRequestDispatcher("welcome.jsp").forward(req, resp);
     }
 
     private Map<String, String> getWeatherData(String city) {
         try {
             String urlString = API_URL + "?q=" + city + "&appid=" + API_KEY + "&units=metric&lang=ru";
+            System.out.println("API URL: " + urlString);
+
             URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.connect();
+
             int responseCode = connection.getResponseCode();
+            System.out.println("Response Code: " + responseCode);
+
             if (responseCode == 200) {
-                InputStreamReader reader = new InputStreamReader(connection.getInputStream());
+                InputStreamReader reader = new InputStreamReader(connection.getInputStream(), "UTF-8");
                 JsonObject jsonResponse = JsonParser.parseReader(reader).getAsJsonObject();
+                System.out.println("JSON Response: " + jsonResponse);
 
-                String temperature = jsonResponse.getAsJsonObject("main").get("temp").getAsString();
-                String description = jsonResponse.getAsJsonArray("weather").get(0)
-                        .getAsJsonObject().get("description").getAsString();
+                if (jsonResponse.has("main") && jsonResponse.getAsJsonObject("main").has("temp") &&
+                        jsonResponse.has("weather") && jsonResponse.getAsJsonArray("weather").size() > 0) {
 
-                Map<String, String> weatherData = new HashMap<>();
-                weatherData.put("city", city);
-                weatherData.put("temperature", temperature);
-                weatherData.put("description", description);
-                return weatherData;
+                    String temperature = jsonResponse.getAsJsonObject("main").get("temp").getAsString();
+                    String description = jsonResponse.getAsJsonArray("weather").get(0)
+                            .getAsJsonObject().get("description").getAsString();
+
+                    Map<String, String> weatherData = new HashMap<>();
+                    weatherData.put("city", city);
+                    weatherData.put("temperature", temperature);
+                    weatherData.put("description", description);
+
+                    System.out.println("Parsed weather data: " + weatherData);
+                    return weatherData;
+                } else {
+                    System.err.println("Invalid JSON structure: " + jsonResponse);
+                }
             } else {
                 System.err.println("Error: Response code " + responseCode);
             }
@@ -68,4 +86,3 @@ public class WeatherServlet extends HttpServlet {
         return null;
     }
 }
-
